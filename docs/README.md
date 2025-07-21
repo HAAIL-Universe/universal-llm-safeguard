@@ -78,7 +78,7 @@ app.add_middleware(SafeguardMiddleware)
 ## Contributing & Community
 
 * See `CONTRIBUTING.md` (to be added)
-* Join our \[Discord/Slack] (link TBA) for collaboration
+* Join our Reddit N/A - (r/"CommingSoon") for collaboration
 * Feedback and suggestions via GitHub Issues
 
 ---
