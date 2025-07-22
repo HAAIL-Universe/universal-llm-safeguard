@@ -27,9 +27,5 @@
   "logging": {
     "log_path": "safeguard_flags.log",
     "anonymize": true
-  },
-  "override": {
-    "parent_phrases": ["override123"],
-    "moderator_phrases": ["modunlock!"]
   }
 }

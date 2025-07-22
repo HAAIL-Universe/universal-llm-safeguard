@@ -1,5 +1,5 @@
 import requests
-from utils.logger import log_entry
+from utils.logger import log_flag
 from datetime import datetime
 import time
 
@@ -45,29 +45,27 @@ class PerspectiveAPIFilter:
                 if score >= threshold:
                     flags.append(attr)
                     reasons.append(f"{attr} score {score:.2f} exceeds threshold of {threshold:.2f}")
-                        
+
             if flags:
-                log_entry(
-                    text=text,
-                    status="blocked",
-                    flags=flags,
-                    reasons=reasons,
-                    override_used=False,
-                    override_role=None,
-                    source=source
-                )
+                log_flag(self.log_path, {
+                    "timestamp": datetime.now().isoformat(),
+                    "filter": "PerspectiveAPI",
+                    "flags": flags,
+                    "reasons": reasons,
+                    "text": text,
+                    "source": source,
+                }, anonymize=self.privacy_mode)
 
             return not flags, flags, reasons
 
         except requests.exceptions.RequestException as e:
             error_reason = f"Perspective API request failed: {str(e)}"
-            log_entry(
-                text=text,
-                status="allowed",  # or maybe "error" if you want to differentiate
-                flags=["API_ERROR"],
-                reasons=[error_reason],
-                override_used=False,
-                override_role=None,
-                source=source
-            )
+            log_flag(self.log_path, {
+                "timestamp": datetime.now().isoformat(),
+                "filter": "PerspectiveAPI",
+                "flags": ["API_ERROR"],
+                "reasons": [error_reason],
+                "text": text,
+                "source": source,
+            }, anonymize=self.privacy_mode)
             return True, [], ["Perspective API unavailable — bypassed filter."]
