@@ -1,0 +1,31 @@
+{
+  "rules": {
+    "banned_keywords": ["sex", "drugs", "violence", "suicide", "kill", "groom", "address", "meet", "alone"],
+    "banned_regex": [".*naked.*", ".*let's keep this secret.*"]
+  },
+  "classifier": {
+    "enabled": true,
+    "model": "unitary/toxic-bert",
+    "thresholds": {
+      "toxic": 0.8,
+      "severe_toxic": 0.7,
+      "insult": 0.75,
+      "sexually_explicit": 0.7,
+      "threat": 0.7
+    }
+  },
+  "perspective_api": {
+    "enabled": true,
+    "api_key": "YOUR_API_KEY_HERE",
+    "privacy_mode": true,
+    "thresholds": {
+      "TOXICITY": 0.8,
+      "INSULT": 0.75,
+      "THREAT": 0.7
+    }
+  },
+  "logging": {
+    "log_path": "safeguard_flags.log",
+    "anonymize": true
+  }
+}
