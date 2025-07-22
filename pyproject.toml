@@ -7,15 +7,28 @@ name = "universal-llm-safeguard"
 version = "0.1.0"
 description = "Universal middleware for safeguarding AI-generated content"
 authors = [
-  { name="Julius Deane", email="your@email.com" }
+  { name = "Julius Deane", email = "founder.haail@gmail.com" }
 ]
-license = { file="LICENSE" }
+license = { file = "LICENSE" }
 readme = "README.md"
 requires-python = ">=3.8"
+
 dependencies = [
-  "fastapi",
-  "flask",
-  "django",
-  "requests",
-  "transformers"
+  "fastapi>=0.95.0",          # pulls in starlette and pydantic
+  "transformers>=4.30.0",
+  "requests>=2.25.0",
+  "flask>=2.0.0",             # futureproof, not required now
+  "django>=3.2"               # futureproof, not required now
 ]
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "httpx",                    # for FastAPI test client
+  "uvicorn[standard]",        # for running FastAPI server locally
+  "black",
+  "isort"
+]
+
+[tool.setuptools.packages.find]
+where = ["."]

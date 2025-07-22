@@ -25,6 +25,17 @@ This project is a universal, open-source, plug-and-play middleware to safeguard 
 pip install universal-llm-safeguard
 ```
 
+### Required Dependencies
+
+Ensure the following dependencies are installed in your environment:
+
+* `fastapi`
+* `flask`
+* `django`
+* `requests`
+* `transformers`
+* `starlette` (required for FastAPI middleware integration)
+
 ---
 
 ## Quick Usage
@@ -42,7 +53,7 @@ print(result)
 
 ```python
 from fastapi import FastAPI
-from universal_llm_safeguard.integrations.fastapi_middleware import SafeguardMiddleware
+from universal_llm_safeguard.middleware.fastapi_adapter import SafeguardMiddleware
 
 app = FastAPI()
 app.add_middleware(SafeguardMiddleware)
@@ -50,8 +61,24 @@ app.add_middleware(SafeguardMiddleware)
 
 ### REST API (Microservice Mode)
 
-* POST `/filter` with JSON: `{ "text": "content here" }`
-* Returns: `{ "status": "blocked|allowed", "flags": [...], "reasons": [...] }`
+```bash
+POST /filter
+Content-Type: application/json
+
+{
+  "text": "content here"
+}
+```
+
+Returns:
+
+```json
+{
+  "status": "blocked|allowed",
+  "flags": ["..."],
+  "reasons": ["..."]
+}
+```
 
 ---
 
@@ -60,6 +87,9 @@ app.add_middleware(SafeguardMiddleware)
 * **docs/blueprints/.trinity/** — Canonical docs (“Trinity”), must-read for any code or LLM extension
 * **docs/blueprints/** — Implementation blueprints/specs for every core module
 * **core/**, **hooks/**, **utils/** — Python package modules (see blueprints for stubs)
+* **middleware/** — Middleware interfaces and framework adapters (e.g., FastAPI)
+* **rest\_api/** — Standalone microservice version of the safeguard engine
+* **demo/** — CLI and web testing interfaces
 * **tests/** — Full test coverage (to be implemented)
 * **config/safeguard\_config.json** — Rules, thresholds, and all filtering settings
 * **logs/** — Filter flag/audit logs (GDPR-compliant)
@@ -78,7 +108,7 @@ app.add_middleware(SafeguardMiddleware)
 ## Contributing & Community
 
 * See `CONTRIBUTING.md` (to be added)
-* Join our Reddit N/A - (r/"CommingSoon") for collaboration
+* Join our Reddit N/A - (r/"ComingSoon") for collaboration
 * Feedback and suggestions via GitHub Issues
 
 ---

@@ -12,6 +12,7 @@ CONFIG = load_config()
 LOG_PATH = CONFIG.get("logging", {}).get("log_path", "logs/safeguard_flags.log")
 ANONYMIZE = CONFIG.get("logging", {}).get("anonymize", True)
 
+
 def log_entry(
     text: str,
     status: str,
@@ -38,4 +39,30 @@ def log_entry(
     os.makedirs(os.path.dirname(LOG_PATH) or ".", exist_ok=True)
 
     with open(LOG_PATH, "a", encoding="utf-8") as f:
+        f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+
+def log_flag(
+    log_path: str,
+    data: dict,
+    anonymize: bool = True
+):
+    """
+    Log a flag event in structured format (called by filters).
+    Expected fields in `data`: text, source, flags, reasons
+    """
+    entry = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "source": data.get("source", "input"),
+        "status": "blocked",
+        "flags": data.get("flags", []),
+        "reasons": data.get("reasons", []),
+        "override_used": False,
+        "override_role": "none",
+        "text": data.get("text") if not anonymize else "[REDACTED]"
+    }
+
+    os.makedirs(os.path.dirname(log_path) or ".", exist_ok=True)
+
+    with open(log_path, "a", encoding="utf-8") as f:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
