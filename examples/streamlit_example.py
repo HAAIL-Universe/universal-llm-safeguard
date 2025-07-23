@@ -1,4 +1,5 @@
 import sys
+print("PYTHONPATH:", sys.path)
 import os
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))

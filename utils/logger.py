@@ -2,16 +2,12 @@ import json
 import os
 from datetime import datetime, timezone
 from typing import List, Optional
+from config_loader import load_config
 
-# Local JSON config loader
-def load_config():
-    with open(os.path.join("config", "safeguard_config.json"), "r", encoding="utf-8") as f:
-        return json.load(f)
-
+# --- Load config once at module load (used for legacy/global logging, not for filters)
 CONFIG = load_config()
 LOG_PATH = CONFIG.get("logging", {}).get("log_path", "logs/safeguard_flags.log")
 ANONYMIZE = CONFIG.get("logging", {}).get("anonymize", True)
-
 
 def log_entry(
     text: str,
@@ -24,6 +20,8 @@ def log_entry(
 ):
     """
     Write a structured JSONL log entry for each filter decision or override.
+    Uses global LOG_PATH and ANONYMIZE from Trinity config.
+    NOTE: For per-filter logging, use log_flag() instead.
     """
     entry = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -36,11 +34,11 @@ def log_entry(
         "text": text if not ANONYMIZE else "[REDACTED]"
     }
 
+    # --- Always ensure log directory exists
     os.makedirs(os.path.dirname(LOG_PATH) or ".", exist_ok=True)
 
     with open(LOG_PATH, "a", encoding="utf-8") as f:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
-
 
 def log_flag(
     log_path: str,
@@ -49,7 +47,10 @@ def log_flag(
 ):
     """
     Log a flag event in structured format (called by filters).
-    Expected fields in `data`: text, source, flags, reasons
+    Args:
+        log_path (str): Log file path (from config; per-filter).
+        data (dict): Should include text, source, flags, reasons.
+        anonymize (bool): Redact text if True.
     """
     entry = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -66,3 +67,9 @@ def log_flag(
 
     with open(log_path, "a", encoding="utf-8") as f:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+# --- NOTES:
+# - All config fields (log_path, anonymize) are now sourced only via Trinity config.
+# - Never hardcode log paths or config fields—keep everything configurable for pip/dev/test/deploy.
+# - log_flag() should be used by filters that may have their own log_path (e.g., in tests or modular pipelines).
+# - log_entry() is for global/legacy use, using default config settings.

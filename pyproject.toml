@@ -11,27 +11,29 @@ authors = [
 ]
 license = { file = "LICENSE" }
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 
 dependencies = [
-  "fastapi>=0.95.0",          # pulls in starlette and pydantic
+  "fastapi>=0.95.0",
   "transformers>=4.30.0",
   "requests>=2.25.0",
-  "flask>=2.0.0",             # futureproof, not required now
-  "django>=3.2",              # futureproof, not required now
-  "torch"                     # required for transformers models (e.g. toxic-bert)
+  "torch"
 ]
 
 [project.optional-dependencies]
+flask = [
+  "flask>=2.0.0"
+]
+django = [
+  "django>=3.2"
+]
+streamlit = [
+  "streamlit"
+]
 dev = [
   "pytest",
-  "httpx",                    # for FastAPI test client
-  "uvicorn[standard]",        # for running FastAPI server locally
+  "httpx",
+  "uvicorn[standard]",
   "black",
-  "isort",
-  "streamlit"                 # for Streamlit example UI adapter (Phase 5.4)
+  "isort"
 ]
-
-
-[tool.setuptools.packages.find]
-where = ["."]
