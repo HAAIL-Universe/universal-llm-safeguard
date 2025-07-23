@@ -18,7 +18,8 @@ dependencies = [
   "transformers>=4.30.0",
   "requests>=2.25.0",
   "flask>=2.0.0",             # futureproof, not required now
-  "django>=3.2"               # futureproof, not required now
+  "django>=3.2",              # futureproof, not required now
+  "torch"                     # required for transformers models (e.g. toxic-bert)
 ]
 
 [project.optional-dependencies]
@@ -27,8 +28,10 @@ dev = [
   "httpx",                    # for FastAPI test client
   "uvicorn[standard]",        # for running FastAPI server locally
   "black",
-  "isort"
+  "isort",
+  "streamlit"                 # for Streamlit example UI adapter (Phase 5.4)
 ]
+
 
 [tool.setuptools.packages.find]
 where = ["."]

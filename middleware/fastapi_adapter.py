@@ -4,6 +4,7 @@ from starlette.responses import Response, JSONResponse
 from utils.override_checker import check_override
 from filters.pipeline import run_full_pipeline
 from middleware.base import LLMSafeguardMiddleware
+from core.orchestrator import run_all_filters
 from typing import Callable
 import json
 
@@ -53,3 +54,33 @@ class SafeguardMiddleware(BaseHTTPMiddleware, LLMSafeguardMiddleware):
         #         pass  # if response is not JSON, let it pass unchanged
 
         return response
+    
+class FastAPISafeguardMiddleware(BaseHTTPMiddleware):
+    """
+    Minimal plug-and-play FastAPI middleware that runs universal safeguard logic via run_all_filters.
+    Compatible with any FastAPI app expecting 'text' in the request JSON.
+    """
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        try:
+            body_bytes = await request.body()
+            body_data = json.loads(body_bytes.decode("utf-8"))
+            text = body_data.get("text", "")
+        except Exception:
+            return JSONResponse(status_code=400, content={"error": "Invalid JSON in request body"})
+
+        result = run_all_filters(text)
+        allowed = result.get("status") == "allowed"
+        flags = result.get("flags", [])
+        reasons = result.get("reasons", [])
+
+        if not allowed:
+            return JSONResponse(
+                status_code=403,
+                content={
+                    "error": "Input blocked by safeguard filters",
+                    "flags": flags,
+                    "reasons": reasons
+                }
+            )
+
+        return await call_next(request)
