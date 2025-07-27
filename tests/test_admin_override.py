@@ -1,3 +1,5 @@
+import os
+import json
 import unittest
 from utils.override_checker import check_override
 
@@ -7,13 +9,27 @@ TEST_OVERRIDE_DATA = {
 }
 
 class TestAdminOverride(unittest.TestCase):
+    def setUp(self):
+        self.log_path = "logs/test_override.log"
+        # Clean log before test
+        if os.path.exists(self.log_path):
+            os.remove(self.log_path)
+
+    def tearDown(self):
+        if os.path.exists(self.log_path):
+            os.remove(self.log_path)
 
     def test_parent_override_detected(self):
         text = "Please allow this override123"
-        used, role, cleaned = check_override(text, override_data=TEST_OVERRIDE_DATA)
+        used, role, cleaned = check_override(text, override_data=TEST_OVERRIDE_DATA, log_path=self.log_path)
         self.assertTrue(used)
         self.assertEqual(role, "parent")
         self.assertEqual(cleaned, "Please allow this")
+        # (Optional) Assert the override event was logged
+        with open(self.log_path) as f:
+            entries = [json.loads(line) for line in f]
+        self.assertTrue(any(e["override_used"] and e["override_role"] == "parent" for e in entries), "Override not logged.")
+
 
     def test_moderator_override_detected(self):
         text = "Allow this modunlock! now"

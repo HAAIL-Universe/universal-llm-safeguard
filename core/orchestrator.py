@@ -1,18 +1,35 @@
-from core.keyword_filter import KeywordRegexFilter
-from core.classifier_filter import ClassifierFilter
-from utils.override_checker import check_override
+from safeguarding.core.keyword_filter import KeywordRegexFilter
+from safeguarding.core.classifier_filter import ClassifierFilter
+from safeguarding.utils.override_checker import check_override
+from safeguarding.utils.logger import log_entry
+import traceback
 
-# --- DEBUG: Confirm this orchestrator.py is being loaded
-print(">>> RUNNING orchestrator.py FROM", __file__)  # [DEBUG - file loaded]
-
-def run_all_filters(text: str, source: str = "input") -> dict:
+def run_all_filters(
+    text: str,
+    source: str = "input",
+    user_id: str = "anon",
+    session_id: str = "anon_session",
+    context: dict = None,
+    log_path: str = None,
+    anonymize: bool = None,
+    config: dict = None
+) -> dict:
     """
-    Canonical safeguard pipeline.
-    Applies override logic, runs all filters, and returns manifest-compliant structured output.
+    Canonical safeguard pipeline for SafeGuard.
+    - Applies override logic
+    - Runs all filters
+    - Merges/dedupes flags/reasons
+    - Logs every run with full audit context (user/session/source)
+    - Handles/logs error cases for full traceability
 
     Args:
         text (str): Input text from user or LLM.
-        source (str): Optional source context string (e.g. "input" or "output").
+        source (str): Context string (e.g., "input" or "output").
+        user_id (str): User identifier or "anon".
+        session_id (str): Session identifier or "anon_session".
+        context (dict): Optional additional context for logs.
+        log_path (str): Optional log file path (for test/prod separation).
+        anonymize (bool): Redact text in logs if True (GDPR/test).
 
     Returns:
         dict: {
@@ -23,48 +40,95 @@ def run_all_filters(text: str, source: str = "input") -> dict:
             "role": "parent" | "moderator" | None
         }
     """
-    # --- DEBUG: Show every function call
-    print(">>> run_all_filters CALLED FROM", __file__)  # [DEBUG - function called]
+    context = context or {}
 
-    # --- Check for parent/moderator override in the input
-    override_used, override_role, cleaned_text = check_override(text)
+    try:
+        # --- Step 1: Check for parent/moderator override
+        override_used, override_role, cleaned_text = check_override(
+            text,
+            log_path=log_path,
+            anonymize=anonymize
+        )
 
-    # --- Instantiate the core filter modules
-    keyword = KeywordRegexFilter()
-    classifier = ClassifierFilter()
+        # --- Step 2: Instantiate and run all core filters on cleaned input
+        keyword = KeywordRegexFilter(config)
+        classifier = ClassifierFilter(config)
 
-    # --- Run all core filters on the cleaned input (logging always happens)
-    allowed_kw, flags_kw, reasons_kw = keyword.check(cleaned_text, source)
-    print("keyword.check returned:", allowed_kw, flags_kw, reasons_kw, type(allowed_kw), type(flags_kw), type(reasons_kw))  # [DEBUG]
+        allowed_kw, flags_kw, reasons_kw = keyword.check(cleaned_text, source)
+        allowed_clf, flags_clf, reasons_clf = classifier.check(cleaned_text, source)
 
-    allowed_clf, flags_clf, reasons_clf = classifier.check(cleaned_text, source)
-    print("classifier.check returned:", allowed_clf, flags_clf, reasons_clf, type(allowed_clf), type(flags_clf), type(reasons_clf))  # [DEBUG]
+        # --- Step 3: Merge and deduplicate all flags/reasons from every filter
+        all_flags = list(set(flags_kw + flags_clf))
+        all_reasons = list(set(reasons_kw + reasons_clf))
 
-    # --- Merge and deduplicate all flags and reasons from every filter
-    all_flags = list(set(flags_kw + flags_clf))
-    all_reasons = list(set(reasons_kw + reasons_clf))
+        # --- Step 4: Log the outcome of this filter run (audit traceable)
+        log_entry(
+            text=text,
+            status="allowed" if (override_used or (allowed_kw and allowed_clf)) else "blocked",
+            flags=all_flags,
+            reasons=all_reasons,
+            override_used=override_used,
+            override_role=override_role if override_used else None,
+            source=source,
+            log_path=log_path,
+            anonymize=anonymize,
+            user_id=user_id,
+            session_id=session_id,
+            action_type="override" if override_used else ("allow" if (allowed_kw and allowed_clf) else "block"),
+            error=None,
+            context={
+                **context,
+                "filters": ["keyword", "classifier"],
+                "endpoint": "run_all_filters"
+            }
+        )
 
-    # --- If override is present, always allow, but log all flags/reasons for auditing
-    if override_used:
-        result = {
-            "status": "allowed",
+        # --- Step 5: Return canonical result
+        if override_used:
+            return {
+                "status": "allowed",
+                "flags": all_flags,
+                "reasons": all_reasons,
+                "override": True,
+                "role": override_role,
+            }
+
+        final_allowed = allowed_kw and allowed_clf
+        return {
+            "status": "allowed" if final_allowed else "blocked",
             "flags": all_flags,
             "reasons": all_reasons,
-            "override": True,
-            "role": override_role,
+            "override": False,
+            "role": None,
         }
-        print(">>> RETURNING from run_all_filters (OVERRIDE):", result, type(result))  # [DEBUG - override return]
-        return result
 
-    # --- Block if any filter blocks, allow only if both allow
-    final_allowed = allowed_kw and allowed_clf
+    except Exception as e:
+        # --- Step 6: Always log unexpected errors for forensics and traceability
+        log_entry(
+            text=text,
+            status="error",
+            flags=[],
+            reasons=["filter_exception"],
+            override_used=False,
+            override_role=None,
+            source=source,
+            log_path=log_path,
+            anonymize=anonymize,
+            user_id=user_id,
+            session_id=session_id,
+            action_type="error",
+            error=str(e),
+            context={
+                **context,
+                "traceback": traceback.format_exc(),
+                "endpoint": "run_all_filters"
+            }
+        )
+        # Raise for upstream handling or crash reporting
+        raise
 
-    result = {
-        "status": "allowed" if final_allowed else "blocked",
-        "flags": all_flags,
-        "reasons": all_reasons,
-        "override": False,
-        "role": None,
-    }
-    print(">>> RETURNING from run_all_filters:", result, type(result))  # [DEBUG - normal return]
-    return result
+# --- NOTES FOR AUDIT/MAINTAINERS:
+# - All filter pipeline results, override attempts, and errors are logged in JSONL via log_entry.
+# - Every log entry includes user/session/context for full auditability.
+# - All errors, not just happy path, are persisted to the log for forensic review.
+# - To extend: Add additional filters, context fields, or adapt for web adapter injection.

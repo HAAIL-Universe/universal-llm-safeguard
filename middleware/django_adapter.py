@@ -1,6 +1,6 @@
 from django.utils.deprecation import MiddlewareMixin
 from django.http import JsonResponse
-from core.orchestrator import run_all_filters
+from safeguarding.core.orchestrator import run_all_filters
 
 class SafeguardMiddleware(MiddlewareMixin):
     """
@@ -20,7 +20,7 @@ class SafeguardMiddleware(MiddlewareMixin):
             if not text:
                 return None
 
-            result = run_all_filters(text)
+            result = run_all_filters(text, config=self.config)
             allowed = result.get("status") == "allowed"
             flags = result.get("flags", [])
             reasons = result.get("reasons", [])

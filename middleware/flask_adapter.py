@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from core.orchestrator import run_all_filters
+from safeguarding.core.orchestrator import run_all_filters
 
 def safeguard_filter(text: str) -> dict:
     """

@@ -1,7 +1,7 @@
 import re
 from typing import List
-from utils.logger import log_flag
-from utils.config_loader import load_config
+from safeguarding.utils.logger import log_flag
+
 
 # --- RuleResult: for legacy/tests only, not used in Trinity orchestrator
 class RuleResult:
@@ -18,20 +18,22 @@ class KeywordRegexFilter:
     Logs all blocks/flags for auditability and transparency.
     Always returns (allowed, flags, reasons) for orchestrator contract.
     """
-    def __init__(self, config_path=None):
+    def __init__(self, config):
         """
         Args:
-            config_path (str, optional): Config file path override. 
-                                         If None, uses Trinity loader resolution.
+            config (dict): Config dict to use (required).
         """
-        # --- Senior: Always load config with canonical loader
-        self.config = load_config(config_path)
+        self.config = config
+
         rules_cfg = self.config.get("rules", {})
         logging_cfg = self.config.get("logging", {})
+
         # Compile set of banned keywords (lowercase for match speed)
         self.banned_keywords = set(kw.lower() for kw in rules_cfg.get("banned_keywords", []))
+
         # Compile regex patterns for performance
         self.banned_regex = [re.compile(rx, re.IGNORECASE) for rx in rules_cfg.get("banned_regex", [])]
+
         # Logging settings (Trinity spec)
         self.log_path = logging_cfg.get("log_path", "safeguard_flags.log")
         self.anonymize = logging_cfg.get("anonymize", True)
@@ -82,9 +84,12 @@ class KeywordRegexFilter:
         return allowed, flags, reasons  # --- Always three values (Trinity)
 
 # --- Classic API for legacy/tests only; do NOT use in orchestrator
-def rule_filter(text: str, source: str = "input") -> RuleResult:
+def rule_filter(text: str, source: str = "input", *, config: dict) -> RuleResult:
     """
     Returns a RuleResult object, for legacy/testing only.
     """
-    allowed, _, reasons = KeywordRegexFilter().check(text, source)
+    if config is None:
+        raise ValueError("Config must be provided to rule_filter (no default allowed).")
+    allowed, _, reasons = KeywordRegexFilter(config).check(text, source)
     return RuleResult(blocked=not allowed, reasons=reasons)
+

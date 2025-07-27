@@ -1,5 +1,5 @@
 import requests
-from utils.logger import log_entry
+from safeguarding.utils.logger import log_entry
 from typing import Dict, Any, Tuple, List
 
 class PerspectiveAPIFilter:
@@ -14,29 +14,32 @@ class PerspectiveAPIFilter:
     def __init__(self, config: Dict[str, Any]):
         """
         Args:
-            config (dict): Trinity-compliant config dict.
+            config (dict, optional): Trinity-compliant config dict.
+            config_path (str, optional): Path to config JSON if config is None.
         """
         self.config = config
-        perspective_cfg = config.get("perspective_api", {})
-        logging_cfg = config.get("logging", {})
+        
+        perspective_cfg = self.config.get("perspective_api", {})
+        logging_cfg = self.config.get("logging", {})
+
         self.enabled = perspective_cfg.get("enabled", False)
-        self.api_key = perspective_cfg.get("api_key")
+        self.api_key = perspective_cfg.get("api_key", "")
         self.thresholds = perspective_cfg.get("thresholds", {})
         self.privacy_mode = perspective_cfg.get("privacy_mode", True)
         self.log_path = logging_cfg.get("log_path", "safeguard_flags.log")
 
-    def check(self, text: str, source: str = "input") -> Tuple[bool, List[str], List[str]]:
+    def check(self, text: str, source: str = "input") -> dict:
         """
-        Check the given text using Perspective API. 
-        Returns Trinity contract: (allowed, flags, reasons).
+        Check the given text using Perspective API.
+        Returns a dict with allowed status, flags, and reasons.
         """
         if not self.enabled or not self.api_key:
-            return True, [], []
+            return {"allowed": True, "flags": [], "reasons": []}
 
         endpoint = "https://commentanalyzer.googleapis.com/v1alpha1/comments:analyze"
         headers = {"Content-Type": "application/json"}
         requested_attrs = {k: {} for k in self.thresholds.keys()}
-        # --- Privacy mode: redact or send full text
+
         payload = {
             "comment": {"text": "[REDACTED]" if self.privacy_mode else text},
             "languages": ["en"],
@@ -55,39 +58,33 @@ class PerspectiveAPIFilter:
 
             flags = []
             reasons = []
+            blocked = False
+
             for attr, details in result.get("attributeScores", {}).items():
                 score = details["summaryScore"]["value"]
-                threshold = self.thresholds.get(attr, 1.0)  # Default: not blocking if not configured
-                if score >= threshold:
-                    flags.append(attr)
-                    reasons.append(f"{attr} score {score:.2f} exceeds threshold {threshold:.2f}")
+                # Expect threshold config like {"toxicity": {"warn": 0.5, "block": 0.7}, ...}
+                thresh_config = self.thresholds.get(attr, {})
+                warn_thresh = thresh_config.get("warn", 0.5)
+                block_thresh = thresh_config.get("block", 0.7)
 
-            # --- Log any flags/blocks for audit trail
-            if flags:
-                log_entry(
-                    text=text,
-                    status="blocked",
-                    flags=flags,
-                    reasons=reasons,
-                    override_used=False,
-                    override_role=None,
-                    source=source
-                )
+                tier = None
+                if score >= block_thresh:
+                    tier = "block"
+                    blocked = True
+                elif score >= warn_thresh:
+                    tier = "warn"
 
-            return not bool(flags), flags, reasons
+                if tier:
+                    flags.append({
+                        "name": attr,
+                        "score": score,
+                        "tier": tier
+                    })
+                    reasons.append(f"{attr} score {score:.2f} ≥ {warn_thresh if tier=='warn' else block_thresh:.2f} ({tier})")
+
+            allowed = not blocked
+            return {"allowed": allowed, "flags": flags, "reasons": reasons}
 
         except requests.exceptions.RequestException as e:
-            # --- Defensive: Log all errors for transparency
-            error_reason = f"Perspective API request failed: {str(e)}"
-            log_entry(
-                text=text,
-                status="error",  # More explicit than "allowed" for downstream audit
-                flags=["API_ERROR"],
-                reasons=[error_reason],
-                override_used=False,
-                override_role=None,
-                source=source
-            )
-            # Senior: Always allow if API is down, but flag the failure for audit
-            return True, [], ["Perspective API unavailable — filter bypassed."]
+            return {"allowed": True, "flags": [], "reasons": ["Perspective API unavailable — filter bypassed."]}
 

@@ -1,10 +1,7 @@
-from core.keyword_filter import rule_filter
-from core.classifier_filter import classifier_filter
-from utils.override_checker import check_override
-from core.models import FilterResult
-
-
-
+from safeguarding.core.keyword_filter import rule_filter
+from safeguarding.core.classifier_filter import classifier_filter
+from safeguarding.utils.override_checker import check_override
+from safeguarding.core.models import FilterResult
 
 def run_full_pipeline(text: str) -> FilterResult:
     override_used, override_role, cleaned_text = check_override(text)
