@@ -1,0 +1,44 @@
+{
+  "rules": {
+    "banned_keywords": ["sex", "drugs", "violence", "suicide", "kill", "groom", "address", "meet", "alone"],
+    "banned_regex": [".*naked.*", ".*let's keep this secret.*"]
+  },
+  "classifier": {
+    "enabled": true,
+    "model": "unitary/toxic-bert",
+    "thresholds": {
+      "toxic": 0.5,
+      "severe_toxic": 0.7,
+      "insult": 0.6,
+      "sexually_explicit": 0.6,
+      "threat": 0.6
+    }
+  },
+  "perspective_api": {
+    "enabled": true,
+    "api_key": "YOUR_API_KEY_HERE",
+    "privacy_mode": true,
+    "thresholds": {
+      "TOXICITY": {
+        "warn": 0.5,
+        "block": 0.8
+      },
+      "INSULT": {
+        "warn": 0.5,
+        "block": 0.75
+      },
+      "THREAT": {
+        "warn": 0.5,
+        "block": 0.7
+      }
+    }
+  },
+  "logging": {
+    "log_path": "safeguard_flags.log",
+    "anonymize": true
+  },
+  "override": {
+    "parent_phrases": ["override123"],
+    "moderator_phrases": ["modunlock!"]
+  }
+}

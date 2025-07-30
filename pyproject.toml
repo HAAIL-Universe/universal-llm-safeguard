@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "universal-llm-safeguard"
+version = "0.1.0"
+description = "Universal middleware for safeguarding AI-generated content"
+authors = [
+  { name = "Julius Deane", email = "founder.haail@gmail.com" }
+]
+license = "MIT"
+readme = "README.md"
+requires-python = ">=3.10"
+
+dependencies = [
+  "fastapi>=0.95.0",
+  "transformers>=4.30.0",
+  "requests>=2.25.0",
+  "torch",
+  "uvicorn[standard]"    # <- Optional but helps for dev/testing
+]
+
+[project.optional-dependencies]
+flask = [
+  "flask>=2.0.0"
+]
+django = [
+  "django>=3.2"
+]
+streamlit = [
+  "streamlit"
+]
+dev = [
+  "pytest",
+  "httpx",
+  "black",
+  "isort"
+]
+
+[tool.setuptools]
+packages = ["safeguarding", "safeguarding.middleware"]  # <- Match to your actual src dir
